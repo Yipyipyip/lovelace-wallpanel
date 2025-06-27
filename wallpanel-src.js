@@ -3293,6 +3293,14 @@ function initWallpanel() {
 			this.restartProgressBarAnimation();
 			this.restartKenBurnsEffect();
 
+			try {
+				if (window.localStorage && newMedia.src) {
+					localStorage.setItem("wallpanel-last-image", newMedia.src);
+				}
+			} catch (e) {
+				logger.debug("Failed to store last image", e);
+			}
+
 			if (curMedia.tagName.toLowerCase() === "video") {
 				this.afterFadeoutTimer = setTimeout(function () {
 					if (curMedia.tagName.toLowerCase() === "video") {
@@ -3382,6 +3390,16 @@ function initWallpanel() {
 			} else {
 				this.imageOneContainer.style.opacity = 0;
 				this.imageTwoContainer.style.opacity = 1;
+			}
+
+			try {
+				const lastImage = window.localStorage && localStorage.getItem("wallpanel-last-image");
+				if (lastImage) {
+					this.imageOne.src = lastImage;
+					this.imageTwo.src = lastImage;
+				}
+			} catch (e) {
+				logger.debug("Failed to load last image", e);
 			}
 
 			await this.switchActiveMedia("start");

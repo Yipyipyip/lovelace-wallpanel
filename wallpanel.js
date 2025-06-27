@@ -3796,6 +3796,13 @@ function initWallpanel() {
         this.startPlayingActiveMedia();
         this.restartProgressBarAnimation();
         this.restartKenBurnsEffect();
+        try {
+          if (window.localStorage && newMedia.src) {
+            localStorage.setItem("wallpanel-last-image", newMedia.src);
+          }
+        } catch (e) {
+          logger.debug("Failed to store last image", e);
+        }
         if (curMedia.tagName.toLowerCase() === "video") {
           this.afterFadeoutTimer = setTimeout(function () {
             if (curMedia.tagName.toLowerCase() === "video") {
@@ -3871,7 +3878,7 @@ function initWallpanel() {
       key: "startScreensaver",
       value: function () {
         var _startScreensaver = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
-          var activeElement, _wp;
+          var activeElement, lastImage, _wp;
           return _regenerator().w(function (_context19) {
             while (1) switch (_context19.n) {
               case 0:
@@ -3898,6 +3905,15 @@ function initWallpanel() {
                 } else {
                   this.imageOneContainer.style.opacity = 0;
                   this.imageTwoContainer.style.opacity = 1;
+                }
+                try {
+                  lastImage = window.localStorage && localStorage.getItem("wallpanel-last-image");
+                  if (lastImage) {
+                    this.imageOne.src = lastImage;
+                    this.imageTwo.src = lastImage;
+                  }
+                } catch (e) {
+                  logger.debug("Failed to load last image", e);
                 }
                 _context19.n = 2;
                 return this.switchActiveMedia("start");
