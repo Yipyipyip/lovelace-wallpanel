@@ -183,6 +183,7 @@ const classStyles = {
 };
 
 const mediaInfoCache = new Map();
+const lastImageKey = "wallpanel_last_image";
 
 function addToMediaInfoCache(mediaUrl, value) {
 	while (mediaInfoCache.size >= config.media_list_max_size) {
@@ -1836,6 +1837,52 @@ function initWallpanel() {
 			cont.style.backgroundImage = srcMediaUrl ? `url(${srcMediaUrl})` : "";
 		}
 
+		saveLastMedia(element) {
+			if (!element || !element.src) return;
+			try {
+				let dataUrl = null;
+				const tag = element.tagName.toLowerCase();
+				if (tag === "video" && element.videoWidth && element.videoHeight) {
+					const canvas = document.createElement("canvas");
+					canvas.width = element.videoWidth;
+					canvas.height = element.videoHeight;
+					const ctx = canvas.getContext("2d");
+					ctx.drawImage(element, 0, 0, canvas.width, canvas.height);
+					dataUrl = canvas.toDataURL("image/png");
+				} else if (tag === "img" && element.naturalWidth && element.naturalHeight) {
+					const canvas = document.createElement("canvas");
+					canvas.width = element.naturalWidth;
+					canvas.height = element.naturalHeight;
+					const ctx = canvas.getContext("2d");
+					ctx.drawImage(element, 0, 0);
+					dataUrl = canvas.toDataURL("image/png");
+				}
+				localStorage.setItem(lastImageKey, dataUrl || element.currentSrc || element.src);
+			} catch (error) {
+				logger.debug("Failed to create data URL for last media:", error);
+				try {
+					localStorage.setItem(lastImageKey, element.currentSrc || element.src);
+				} catch (e) {
+					logger.debug("Failed to save last media:", e);
+				}
+			}
+		}
+
+		loadLastMedia() {
+			try {
+				const data = localStorage.getItem(lastImageKey);
+				if (!data) return;
+				this.imageOne.src = data;
+				this.imageOneContainer.style.opacity = 1;
+				this.imageTwoContainer.style.opacity = 0;
+				if (config.image_background === "image") {
+					this.loadBackgroundImage(this.imageOne);
+				}
+			} catch (e) {
+				logger.debug("Failed to load last media:", e);
+			}
+		}
+
 		connectedCallback() {
 			this.style.zIndex = config.z_index;
 			this.style.visibility = "hidden";
@@ -1963,6 +2010,8 @@ function initWallpanel() {
 			shadow.appendChild(this.screensaverContainer);
 			shadow.appendChild(this.messageContainer);
 			shadow.appendChild(this.debugBox);
+
+			this.loadLastMedia();
 
 			const wp = this;
 			const eventNames = ["click", "touchstart", "touchend", "wheel"];
@@ -3292,6 +3341,7 @@ function initWallpanel() {
 			this.startPlayingActiveMedia();
 			this.restartProgressBarAnimation();
 			this.restartKenBurnsEffect();
+			this.saveLastMedia(newMedia);
 
 			if (curMedia.tagName.toLowerCase() === "video") {
 				this.afterFadeoutTimer = setTimeout(function () {

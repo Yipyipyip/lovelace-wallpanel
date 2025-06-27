@@ -222,6 +222,7 @@ var classStyles = {
   }
 };
 var mediaInfoCache = new Map();
+var lastImageKey = "wallpanel_last_image";
 function addToMediaInfoCache(mediaUrl, value) {
   while (mediaInfoCache.size >= config.media_list_max_size) {
     // Remove the oldest key (first inserted)
@@ -1702,6 +1703,54 @@ function initWallpanel() {
         cont.style.backgroundImage = srcMediaUrl ? "url(".concat(srcMediaUrl, ")") : "";
       }
     }, {
+      key: "saveLastMedia",
+      value: function saveLastMedia(element) {
+        if (!element || !element.src) return;
+        try {
+          var dataUrl = null;
+          var tag = element.tagName.toLowerCase();
+          if (tag === "video" && element.videoWidth && element.videoHeight) {
+            var canvas = document.createElement("canvas");
+            canvas.width = element.videoWidth;
+            canvas.height = element.videoHeight;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(element, 0, 0, canvas.width, canvas.height);
+            dataUrl = canvas.toDataURL("image/png");
+          } else if (tag === "img" && element.naturalWidth && element.naturalHeight) {
+            var _canvas = document.createElement("canvas");
+            _canvas.width = element.naturalWidth;
+            _canvas.height = element.naturalHeight;
+            var _ctx = _canvas.getContext("2d");
+            _ctx.drawImage(element, 0, 0);
+            dataUrl = _canvas.toDataURL("image/png");
+          }
+          localStorage.setItem(lastImageKey, dataUrl || element.currentSrc || element.src);
+        } catch (error) {
+          logger.debug("Failed to create data URL for last media:", error);
+          try {
+            localStorage.setItem(lastImageKey, element.currentSrc || element.src);
+          } catch (e) {
+            logger.debug("Failed to save last media:", e);
+          }
+        }
+      }
+    }, {
+      key: "loadLastMedia",
+      value: function loadLastMedia() {
+        try {
+          var data = localStorage.getItem(lastImageKey);
+          if (!data) return;
+          this.imageOne.src = data;
+          this.imageOneContainer.style.opacity = 1;
+          this.imageTwoContainer.style.opacity = 0;
+          if (config.image_background === "image") {
+            this.loadBackgroundImage(this.imageOne);
+          }
+        } catch (e) {
+          logger.debug("Failed to load last media:", e);
+        }
+      }
+    }, {
       key: "connectedCallback",
       value: function connectedCallback() {
         var _this7 = this;
@@ -1801,6 +1850,7 @@ function initWallpanel() {
         shadow.appendChild(this.screensaverContainer);
         shadow.appendChild(this.messageContainer);
         shadow.appendChild(this.debugBox);
+        this.loadLastMedia();
         var wp = this;
         var eventNames = ["click", "touchstart", "touchend", "wheel"];
         if (config.stop_screensaver_on_key_down) {
@@ -3796,6 +3846,7 @@ function initWallpanel() {
         this.startPlayingActiveMedia();
         this.restartProgressBarAnimation();
         this.restartKenBurnsEffect();
+        this.saveLastMedia(newMedia);
         if (curMedia.tagName.toLowerCase() === "video") {
           this.afterFadeoutTimer = setTimeout(function () {
             if (curMedia.tagName.toLowerCase() === "video") {
